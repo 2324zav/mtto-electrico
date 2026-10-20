@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mtto Eléctrico - PDF Fixed</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#0f172a}
+header{padding:14px 16px;background:#0f172a;color:#fff;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:20}
+.card{border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+input,textarea,select{width:100%;padding:11px;margin:6px 0;border:1px solid #cbd5e1;border-radius:10px;font-size:13px}
+.login{max-width:420px;margin:30px auto;padding:24px;border:1px solid #e2e8f0;border-radius:18px;background:#fff}
+.badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;margin:2px;background:#e2e8f0}
+.hide{display:none!important}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-start;justify-content:center;z-index:999;padding:10px;overflow:auto}
+.modal-box{background:#fff;border-radius:16px;max-width:850px;width:100%;margin:20px auto;max-height:95vh;overflow:auto}
+.qr-box{background:#fff;padding:18px;border-radius:16px;max-width:400px;width:100%;text-align:center}
+#qrcode{margin:12px auto;width:200px;height:200px;display:flex;align-items:center;justify-content:center;background:#fff;padding:8px;border:1px solid #e2e8f0;border-radius:10px}
+.btn{padding:9px 14px;border-radius:10px;border:0;font-weight:700;cursor:pointer;font-size:12px}
+.btn-dark{background:#0f172a;color:#fff}
+.btn-light{background:#fff;border:1px solid #cbd5e1}
+.btn-green{background:#dcfce7;border:1px solid #bbf7d0;color:#166534}
+.img-thumb{width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;margin:4px;cursor:pointer}
+.maint-card{border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin:8px 0;background:#f8fafc;border-left:5px solid #0f172a}
+.tab-mini{display:inline-block;padding:6px 12px;border-radius:20px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:11px;font-weight:700;margin:3px}
+.tab-mini.active{background:#0f172a;color:#fff}
+</style>
+</head>
+<body>
+<div id="setupScreen" class="login hide">
+<h2>🔒 Configurar Clave Planta</h2>
+<p style="font-size:13px;color:#475569">Clave local, no visible en GitHub</p>
+<input id="setupPass1" type="password" placeholder="Crea clave"><input id="setupPass2" type="password" placeholder="Confirma">
+<button onclick="setupClave()" class="btn btn-dark" style="width:100%;padding:12px;margin-top:8px">Guardar Clave Local</button>
+</div>
+<div id="loginScreen" class="login hide">
+<h2>Acceso Planta</h2>
+<input id="pass" type="password" placeholder="Clave privada"><button onclick="login()" class="btn btn-dark" style="width:100%;padding:12px;margin-top:8px">Entrar</button>
+<p id="loginErr" style="color:red;font-size:12px"></p><button onclick="resetClave()" class="btn btn-light" style="width:100%">Resetear</button>
+</div>
+
+<div id="app" class="hide">
+<header><b id="hdr">Mtto Eléctrico</b><div><span id="userLabel" style="font-size:10px;background:#1e293b;padding:4px 8px;border-radius:20px"></span> <button onclick="logout()" class="btn btn-light" style="padding:5px 10px">Salir</button></div></header>
+<div id="listaMotores"></div>
+<div class="card" id="addBox">
+<div id="formTitle" style="font-weight:800">➕ Nuevo Motor</div>
+<div id="editingBanner" class="hide" style="background:#fffbeb;border:1px solid #fde68a;padding:8px;border-radius:8px;margin:8px 0;font-size:12px">✏️ Editando <b id="editingName"></b> <button onclick="cancelarEdicion()" class="btn btn-light" style="padding:3px 8px">Cancelar</button></div>
+<input id="mNombre" placeholder="Nombre motor"><div style="display:flex;gap:6px"><input id="mHP" placeholder="HP"><input id="mV" placeholder="Voltaje"></div><div style="display:flex;gap:6px"><input id="mRPM" placeholder="RPM"><input id="mFrame" placeholder="Frame"></div><input id="mArea" placeholder="Área ej: Sulfurex 4">
+<input id="mUbicacion" placeholder="Ubicación ej: Planta 2, Nave B, Línea 3, Tablero CCM-4">
+<textarea id="mObs" placeholder="Obs"></textarea><button id="btnGuardar" onclick="guardarMotor()" class="btn btn-dark" style="width:100%;padding:12px">💾 Guardar Motor</button>
+</div>
+</div>
+
+<div id="fichaModal" class="modal hide">
+<div class="modal-box" id="printArea">
+<div style="padding:16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:5">
+<div><b id="fichaTitle">Ficha</b><br><span id="fichaSub" style="font-size:11px;color:#64748b"></span></div>
+<div style="display:flex;gap:6px"><button onclick="descargarPDF()" class="btn btn-dark">📄 PDF</button><button onclick="closeFicha()" class="btn btn-light">Cerrar</button></div>
+</div>
+<div style="padding:12px">
+<div id="fichaDatos" class="card" style="margin:0 0 10px 0"></div>
+<div class="card" style="margin:0 0 10px 0;background:#f8fafc;border-style:dashed" id="formMantBox">
+<h4 style="margin:0 0 8px 0">➕ Agregar Mantenimiento a este Motor</h4>
+<select id="fmTipo"><option value="engrasado">🟢 Engrasado</option><option value="cambio_baleros">🔴 Cambio Baleros</option><option value="preventivo_general">🔵 Preventivo General</option><option value="termografia">🌡️ Termografía</option><option value="vibracion">📳 Vibración</option><option value="alineacion_poleas">📐 Alineación Poleas</option><option value="alineacion_flecha">📐 Alineación Flecha</option></select>
+<div style="display:flex;gap:6px"><input id="fmFecha" type="date"><select id="fmTurno"><option>Matutino</option><option>Vespertino</option><option>Nocturno</option></select></div>
+<input id="fmTecnico" placeholder="Técnico"><textarea id="fmObs" placeholder="Observaciones obligatorio: temp, vibración, alineación, etc"></textarea>
+<label style="font-size:12px;font-weight:700">📸 Foto (termografía/vibración/alineación)</label><input id="fmFoto" type="file" accept="image/*" onchange="previewFoto(event,'fmFotoPreview')"><div id="fmFotoPreview"></div>
+<button onclick="guardarMantEnFicha()" class="btn btn-dark" style="width:100%;padding:12px;margin-top:8px">💾 Guardar en este Motor</button>
+</div>
+<div style="padding:6px">
+<div style="margin-bottom:8px"><span class="tab-mini active" onclick="filtrarFicha('todos',this)">Todos</span><span class="tab-mini" onclick="filtrarFicha('engrasado',this)">Engrasado</span><span class="tab-mini" onclick="filtrarFicha('cambio_baleros',this)">Baleros</span><span class="tab-mini" onclick="filtrarFicha('termografia',this)">Termografía</span><span class="tab-mini" onclick="filtrarFicha('vibracion',this)">Vibración</span><span class="tab-mini" onclick="filtrarFicha('alineacion',this)">Alineación</span></div>
+<div id="fichaMants"></div>
+</div>
+<div style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+<button onclick="generarQR(fichaMotorId)" class="btn btn-dark" style="flex:1">📱 QR Motor</button>
+<button onclick="descargarPDF()" class="btn btn-green" style="flex:1">📄 Descargar PDF con todo</button>
+<button onclick="imprimirFicha()" class="btn btn-light" style="flex:1">🖨️ Imprimir</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="qrModal" class="modal hide"><div style="margin:auto"><div class="qr-box"><h3 id="qrTitle">QR Motor</h3><p id="qrNombre" style="font-weight:700"></p><p id="qrDetalle" style="font-size:12px;color:#475569"></p><div id="qrcode"></div><input id="qrLink" readonly style="font-size:11px;width:100%;padding:8px;border:1px solid #ddd;border-radius:8px"><div style="display:flex;gap:6px;margin-top:10px"><button onclick="copyQR()" class="btn btn-dark" style="flex:1">Copiar</button><button onclick="printQR()" class="btn btn-light" style="flex:1">Imprimir QR</button><button onclick="closeQR()" class="btn btn-light" style="flex:1">Cerrar</button></div><div id="qrMaintPreview" style="text-align:left;margin-top:10px;font-size:11px"></div></div></div></div>
+<div id="imgModal" class="modal hide" onclick="this.classList.add('hide')"><div style="margin:auto"><div class="qr-box"><img id="imgBig" style="width:100%;border-radius:12px"><p id="imgBigTxt" style="font-size:12px;color:#64748b"></p><button class="btn btn-light" style="width:100%;margin-top:8px" onclick="document.getElementById('imgModal').classList.add('hide')">Cerrar</button></div></div></div>
+
+<!-- Librerias -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- jsPDF 2.5.1 UMD -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<script>
+let motores = JSON.parse(localStorage.getItem('motores_v2')||'[]');
+let mantenimientos = JSON.parse(localStorage.getItem('mants_v3')||'[]');
+if(motores.length===0){ motores=[{id:"1",nombre:"Soplador B sx 4",hp:"300 HP",voltaje:"440V",rpm:"1785 RPM",frame:"449T",area:"Sulfurex 4",ubicacion:"Planta 1 - Nave A",obs:"Motor principal"}]; localStorage.setItem('motores_v2', JSON.stringify(motores)); }
+let isGuest=false, guestMotorId=null, editingId=null, fichaMotorId=null, tempFotos={}, filtroFicha='todos';
+
+function checkAuth(){
+ const urlParams=new URLSearchParams(window.location.search);
+ if(urlParams.get('guest')==='1'){ isGuest=true; guestMotorId=urlParams.get('motor'); document.getElementById('setupScreen').classList.add('hide'); document.getElementById('loginScreen').classList.add('hide'); document.getElementById('app').classList.remove('hide'); document.getElementById('userLabel').innerText='Invitado QR'; document.getElementById('hdr').innerText='Mtto (Invitado)'; render(); setTimeout(()=>{ openFicha(guestMotorId); }, 400); return; }
+ const hash=localStorage.getItem('admin_hash_local');
+ if(!hash) document.getElementById('setupScreen').classList.remove('hide');
+ else if(localStorage.getItem('auth_ok')){ document.getElementById('setupScreen').classList.add('hide'); document.getElementById('loginScreen').classList.add('hide'); document.getElementById('app').classList.remove('hide'); document.getElementById('userLabel').innerText='Planta'; render(); }
+ else { document.getElementById('setupScreen').classList.add('hide'); document.getElementById('loginScreen').classList.remove('hide'); }
+}
+function simpleHash(s){ let h=0; for(let i=0;i<s.length;i++){ h=((h<<5)-h)+s.charCodeAt(i); h|=0; } return 'h_'+h+'_'+s.length; }
+function setupClave(){ const p1=document.getElementById('setupPass1').value.trim(); const p2=document.getElementById('setupPass2').value.trim(); if(p1.length<4) return alert('Mín 4'); if(p1!==p2) return alert('No coinciden'); localStorage.setItem('admin_hash_local', simpleHash(p1)); location.reload(); }
+function login(){ if(simpleHash(document.getElementById('pass').value)===localStorage.getItem('admin_hash_local')){ localStorage.setItem('auth_ok','1'); location.reload(); } else document.getElementById('loginErr').innerText='Incorrecta'; }
+function resetClave(){ if(confirm('¿Borrar clave?')){ localStorage.removeItem('admin_hash_local'); localStorage.removeItem('auth_ok'); location.reload(); } }
+function logout(){ localStorage.removeItem('auth_ok'); location.href=location.pathname; }
+
+function guardarMotor(){
+ const nombre=document.getElementById('mNombre').value.trim(); if(!nombre) return alert('Nombre');
+ const datos={nombre,hp:document.getElementById('mHP').value||'N/A',voltaje:document.getElementById('mV').value||'440V',rpm:document.getElementById('mRPM').value||'',frame:document.getElementById('mFrame').value||'',area:document.getElementById('mArea').value||'',ubicacion:document.getElementById('mUbicacion').value||'',obs:document.getElementById('mObs').value||''};
+ if(editingId){ const idx=motores.findIndex(x=>x.id===editingId); if(idx>=0) motores[idx]={...motores[idx],...datos}; editingId=null; document.getElementById('formTitle').innerText='➕ Nuevo Motor'; document.getElementById('editingBanner').classList.add('hide'); }
+ else { const m={id:Date.now().toString(),...datos}; motores.push(m); }
+ localStorage.setItem('motores_v2', JSON.stringify(motores)); ['mNombre','mHP','mV','mRPM','mFrame','mArea','mUbicacion','mObs'].forEach(i=>document.getElementById(i).value=''); render();
+}
+function editarMotor(id){ const m=motores.find(x=>x.id===id); if(!m) return; editingId=id; document.getElementById('mNombre').value=m.nombre; document.getElementById('mHP').value=m.hp; document.getElementById('mV').value=m.voltaje; document.getElementById('mRPM').value=m.rpm; document.getElementById('mFrame').value=m.frame; document.getElementById('mArea').value=m.area; document.getElementById('mUbicacion').value=m.ubicacion||''; document.getElementById('mObs').value=m.obs||''; document.getElementById('formTitle').innerText='✏️ Editando Motor'; document.getElementById('editingName').innerText=m.nombre; document.getElementById('editingBanner').classList.remove('hide'); window.scrollTo({top:0,behavior:'smooth'}); }
+function borrarMotor(id){ if(!confirm('¿Borrar motor y todo su historial?')) return; motores=motores.filter(x=>x.id!==id); mantenimientos=mantenimientos.filter(x=>x.motorId!==id); localStorage.setItem('motores_v2', JSON.stringify(motores)); localStorage.setItem('mants_v3', JSON.stringify(mantenimientos)); render(); }
+function cancelarEdicion(){ editingId=null; ['mNombre','mHP','mV','mRPM','mFrame','mArea','mUbicacion','mObs'].forEach(i=>document.getElementById(i).value=''); document.getElementById('formTitle').innerText='➕ Nuevo Motor'; document.getElementById('editingBanner').classList.add('hide'); }
+
+function render(){
+ let filtered=motores; if(guestMotorId) filtered=motores.filter(m=>m.id===guestMotorId);
+ let html='';
+ filtered.forEach(m=>{
+   const mMants=mantenimientos.filter(x=>x.motorId===m.id);
+   html+=`<div class="card"><div style="display:flex;justify-content:space-between"><b>${m.nombre}</b><span class="badge">${m.hp}</span></div><div style="font-size:12px;color:#475569;margin-top:6px">${m.voltaje} | ${m.rpm} | ${m.frame}<br>Área: ${m.area}<br>Ubicación: ${m.ubicacion||'-'}<br>${m.obs||''}</div><div style="font-size:11px;margin-top:8px;background:#f8fafc;padding:8px;border-radius:8px">📋 Total: ${mMants.length} | Engrasado: ${mMants.filter(x=>x.tipo==='engrasado').length} | Termo: ${mMants.filter(x=>x.tipo==='termografia').length} | Vib: ${mMants.filter(x=>x.tipo==='vibracion').length} | Ali: ${mMants.filter(x=>x.tipo.includes('alineacion')).length}</div><div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><button onclick="openFicha('${m.id}')" class="btn btn-dark" style="flex:1">👁️ Ver Todo + PDF</button><button onclick="generarQR('${m.id}')" class="btn btn-light">📱 QR</button>${!isGuest?'<button onclick="editarMotor(\''+m.id+'\')" class="btn btn-light">✏️</button><button onclick="borrarMotor(\''+m.id+'\')" class="btn" style="background:#fee2e2;color:#b91c1c">🗑️</button>':''}</div></div>`;
+ });
+ document.getElementById('listaMotores').innerHTML=html||'<div class="card">Sin motores</div>';
+}
+
+function openFicha(id){
+ fichaMotorId=id;
+ const m=motores.find(x=>x.id===id); if(!m) return;
+ document.getElementById('fichaTitle').innerText=m.nombre;
+ document.getElementById('fichaSub').innerText=m.hp+' • '+m.voltaje+' • '+m.area;
+ document.getElementById('fichaDatos').innerHTML=`<b>${m.nombre}</b> - ${m.hp}<br><span style="font-size:12px;color:#475569">Voltaje: ${m.voltaje} | RPM: ${m.rpm} | Frame: ${m.frame}<br>Área: ${m.area}<br>Ubicación: ${m.ubicacion||'-'}<br>Obs: ${m.obs||'-'}<br>ID: ${m.id}</span>`;
+ document.getElementById('fichaModal').classList.remove('hide');
+ document.getElementById('fmFecha').valueAsDate=new Date();
+ if(isGuest){ document.getElementById('formMantBox').classList.add('hide'); } else { document.getElementById('formMantBox').classList.remove('hide'); }
+ filtroFicha='todos'; document.querySelectorAll('.tab-mini').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.tab-mini')[0]?.classList.add('active');
+ renderFichaMants();
+}
+function closeFicha(){ document.getElementById('fichaModal').classList.add('hide'); fichaMotorId=null; }
+function filtrarFicha(tipo, btn){ filtroFicha=tipo; document.querySelectorAll('.tab-mini').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderFichaMants(); }
+
+function previewFoto(e, previewId){ const file=e.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=function(ev){ tempFotos[previewId]=ev.target.result; document.getElementById(previewId).innerHTML='<img src="'+ev.target.result+'" class="img-thumb" style="width:110px;height:110px">'; }; reader.readAsDataURL(file); }
+
+function guardarMantEnFicha(){
+ if(!fichaMotorId) return alert('No hay motor');
+ const tipo=document.getElementById('fmTipo').value;
+ const fecha=document.getElementById('fmFecha').value||new Date().toISOString().split('T')[0];
+ const turno=document.getElementById('fmTurno').value;
+ const tecnico=document.getElementById('fmTecnico').value||'N/A';
+ const obs=document.getElementById('fmObs').value.trim();
+ if(!obs) return alert('Observaciones obligatorias');
+ const foto=tempFotos['fmFotoPreview']||null;
+ const mant={id:Date.now().toString(), motorId:fichaMotorId, tipo, fecha, turno, tecnico, obs, foto};
+ mantenimientos.push(mant); localStorage.setItem('mants_v3', JSON.stringify(mantenimientos));
+ tempFotos['fmFotoPreview']=null; document.getElementById('fmFotoPreview').innerHTML=''; document.getElementById('fmFoto').value=''; document.getElementById('fmObs').value=''; document.getElementById('fmTecnico').value='';
+ renderFichaMants(); render();
+ alert('Guardado '+tipo);
+}
+
+function renderFichaMants(){
+ if(!fichaMotorId) return;
+ let list=mantenimientos.filter(x=>x.motorId===fichaMotorId).sort((a,b)=> b.fecha.localeCompare(a.fecha));
+ if(filtroFicha!=='todos'){ if(filtroFicha==='alineacion') list=list.filter(x=> x.tipo.includes('alineacion')); else list=list.filter(x=> x.tipo===filtroFicha); }
+ let html='';
+ list.forEach(x=>{
+   html+=`<div class="maint-card"><div style="display:flex;justify-content:space-between"><b>${x.tipo.toUpperCase()}</b><span style="font-size:11px">${x.fecha} - ${x.turno}</span></div><div style="font-size:11px;color:#475569">Técnico: ${x.tecnico}</div><div style="font-size:12px;margin-top:6px;background:#fff;padding:8px;border-radius:8px;border:1px solid #e2e8f0"><b>Observaciones:</b><br>${x.obs}</div>${x.foto?'<img src="'+x.foto+'" class="img-thumb" onclick="verImg(\''+x.foto+'\',\''+x.obs.substring(0,60).replace(/'/g,'')+'\')">':''}${!isGuest?'<div style="margin-top:6px"><button onclick="borrarMant(\''+x.id+'\')" class="btn" style="font-size:10px;background:#fee2e2;color:#b91c1c">Borrar</button></div>':''}</div>`;
+ });
+ document.getElementById('fichaMants').innerHTML=html||'<p style="font-size:12px;color:#94a3b8;text-align:center;padding:20px">Sin registros. Agrega el primero arriba.</p>';
+}
+function borrarMant(id){ if(!confirm('¿Borrar?')) return; mantenimientos=mantenimientos.filter(x=>x.id!==id); localStorage.setItem('mants_v3', JSON.stringify(mantenimientos)); renderFichaMants(); render(); }
+function verImg(src, txt){ document.getElementById('imgBig').src=src; document.getElementById('imgBigTxt').innerText=txt||''; document.getElementById('imgModal').classList.remove('hide'); }
+
+function generarQR(id){ const m=motores.find(x=>x.id===id); if(!m) return; const base='https://2324zav.github.io/mtto-electrico/'; const link=base+'?guest=1&motor='+id; document.getElementById('qrModal').classList.remove('hide'); document.getElementById('qrLink').value=link; document.getElementById('qrNombre').innerText=m.nombre; document.getElementById('qrDetalle').innerText=m.hp+' - '+(m.area||''); const qrEl=document.getElementById('qrcode'); qrEl.innerHTML=''; try{ new QRCode(qrEl,{text:link,width:180,height:180}); }catch(e){ qrEl.innerHTML='<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(link)+'">'; } const mMants=mantenimientos.filter(x=>x.motorId===id); document.getElementById('qrMaintPreview').innerHTML='Ficha completa + '+mMants.length+' mantenimientos. Al escanear se puede descargar PDF'; }
+function closeQR(){ document.getElementById('qrModal').classList.add('hide'); }
+function copyQR(){ const el=document.getElementById('qrLink'); el.select(); try{navigator.clipboard.writeText(el.value);}catch(e){} alert('Copiado'); }
+function printQR(){ const link=document.getElementById('qrLink').value; const nombre=document.getElementById('qrNombre').innerText; const w=window.open('','_blank'); w.document.write('<html><body style="text-align:center;font-family:Arial"><h2>'+nombre+'</h2><img src="https://api.qrserver.com/v1/create-qr-code/?size=350x350&data='+encodeURIComponent(link)+'"><p>'+link+'</p></body></html>'); w.document.close(); setTimeout(()=>w.print(),400); }
+
+function imprimirFicha(){ const content=document.getElementById('printArea').innerHTML; const w=window.open('','_blank'); w.document.write('<html><head><title>Ficha</title></head><body>'+content+'</body></html>'); w.document.close(); setTimeout(()=>w.print(),500); }
+
+function descargarPDF(){
+ try{
+   let currentId = fichaMotorId || guestMotorId;
+   if(!currentId){ alert('Abre la ficha de un motor primero (Ver Todo)'); return; }
+   const m=motores.find(x=>x.id===currentId); if(!m){ alert('Motor no encontrado'); return; }
+   if(!window.jspdf || !window.jspdf.jsPDF){ alert('jsPDF no cargó, revisa conexión. Usando impresión...'); imprimirFicha(); return; }
+   const { jsPDF } = window.jspdf;
+   const doc = new jsPDF('p','mm','a4');
+   let y=12;
+   doc.setFontSize(16); doc.setFont(undefined,'bold'); doc.text('Ficha Tecnica - '+m.nombre, 10, y); y+=8;
+   doc.setFontSize(10); doc.setFont(undefined,'normal');
+   doc.text('HP: '+m.hp+' | Voltaje: '+m.voltaje+' | RPM: '+m.rpm+' | Frame: '+m.frame, 10, y); y+=6;
+   doc.text('Area: '+m.area+' | Ubicacion: '+(m.ubicacion||'-')+' | ID: '+m.id, 10, y); y+=6;
+   const obsLines = doc.splitTextToSize('Observaciones generales: '+(m.obs||'-'), 190);
+   doc.text(obsLines, 10, y); y+= obsLines.length*5 + 4;
+   doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text('Historial Completo ('+mantenimientos.filter(x=>x.motorId===currentId).length+' registros)', 10, y); y+=7;
+   doc.setFontSize(9); doc.setFont(undefined,'normal');
+   const mMants=mantenimientos.filter(x=>x.motorId===currentId).sort((a,b)=> a.fecha.localeCompare(b.fecha));
+   mMants.forEach((x,i)=>{
+     if(y>255){ doc.addPage(); y=12; }
+     doc.setFont(undefined,'bold'); doc.text((i+1)+'. '+x.fecha+' - '+x.tipo.toUpperCase()+' - '+x.turno+' - Tec: '+x.tecnico, 10, y); y+=5;
+     doc.setFont(undefined,'normal');
+     const lines = doc.splitTextToSize('Obs: '+x.obs, 185);
+     doc.text(lines, 12, y); y+= lines.length*4 +2;
+     if(x.foto){
+       try{
+         if(y>210){ doc.addPage(); y=12; }
+         // detectar formato
+         let fmt='JPEG';
+         if(x.foto.includes('data:image/png')) fmt='PNG';
+         doc.addImage(x.foto, fmt, 12, y, 45, 32);
+         y+=34;
+       }catch(err){
+         doc.text('[Foto no incluida - error formato]', 12, y); y+=5;
+       }
+     }
+     y+=3;
+     if(y>270){ doc.addPage(); y=12; }
+   });
+   doc.setFontSize(8); doc.text('Generado: '+new Date().toLocaleString()+' | QR: https://2324zav.github.io/mtto-electrico/?guest=1&motor='+m.id, 10, 290);
+   doc.save('Ficha_'+m.nombre.replace(/\s+/g,'_')+'.pdf');
+ }catch(e){
+   console.error(e);
+   alert('Error PDF: '+e.message+' - Se abrira impresion alternativa');
+   imprimirFicha();
+ }
+}
+
+checkAuth();
+document.getElementById('fmFecha') && (document.getElementById('fmFecha').valueAsDate=new Date());
+</script>
+</body>
+</html>
