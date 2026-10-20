@@ -1,2 +1,0 @@
-# mtto electrico
-
